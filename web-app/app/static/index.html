@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redouane Install — حمل الفيديو من أي موقع</title>
+<meta name="description" content="حمل الفيديوهات وMP3 من أكثر من 1000 موقع مجاناً — يوتيوب، تيك توك، إنستغرام، فيسبوك وغيرها.">
+<link rel="icon" href="/static/icon.png">
+<style>
+  :root { --red:#E53935; --red2:#B71C1C; --bg:#0E0E10; --s:#19191E; --s2:#232329; --t:#F2F2F4; --m:#9C9CA6; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--t); font-family:"Segoe UI", Tahoma, Arial, sans-serif; min-height:100vh; }
+  .wrap { max-width:760px; margin:0 auto; padding:22px 16px 60px; }
+  .hero { background:linear-gradient(120deg,var(--red2),var(--red)); border-radius:22px; padding:22px; display:flex; align-items:center; gap:14px; }
+  .hero img { width:64px; height:64px; border-radius:16px; }
+  .hero h1 { font-size:24px; }
+  .hero p { color:rgba(255,255,255,.88); font-size:13px; margin-top:4px; line-height:1.7; }
+  .feats { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 20px; }
+  .feats span { background:var(--s2); color:var(--m); font-size:12px; padding:7px 14px; border-radius:999px; }
+  .panel { background:var(--s); border-radius:18px; padding:16px; margin-top:14px; }
+  label { display:block; color:var(--m); font-size:13px; margin-bottom:8px; }
+  .row { display:flex; gap:8px; }
+  input[type=text] {
+    flex:1; background:var(--bg); border:1px solid #2b2b31; color:var(--t);
+    border-radius:14px; padding:14px; font-size:14px; font-family:inherit; direction:ltr; text-align:right;
+  }
+  input[type=text]:focus { outline:2px solid var(--red); border-color:var(--red); }
+  .btn {
+    background:var(--red); color:#fff; font-weight:700; border:none; border-radius:14px;
+    padding:14px 20px; font-size:14.5px; cursor:pointer; font-family:inherit;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none;
+  }
+  .btn:active { transform:scale(.98); }
+  .btn.ghost { background:transparent; border:1.5px solid var(--red); color:#FF6F60; }
+  .btn.big { width:100%; margin-top:12px; padding:16px; font-size:16px; border-radius:16px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .note { color:var(--m); font-size:12px; margin-top:10px; text-align:center; min-height:16px; }
+  .err { background:#2A1414; color:#FFB4AB; border-radius:14px; padding:13px; font-size:13.5px; margin-top:12px; display:none; }
+  #card { display:none; margin-top:14px; }
+  .cardrow { display:flex; gap:12px; }
+  .cardrow img { width:128px; height:84px; object-fit:cover; border-radius:10px; background:var(--bg); }
+  .cardrow h3 { font-size:14px; line-height:1.6; }
+  .cardrow small { color:var(--m); display:block; margin-top:6px; font-size:12px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .chip { background:transparent; border:1px solid #33333a; color:var(--t); border-radius:999px; padding:9px 16px; font-size:13px; cursor:pointer; font-family:inherit; }
+  .chip:hover { border-color:var(--red); }
+  .chip.sel { background:var(--red); border-color:var(--red); }
+  .spinner { display:none; text-align:center; margin-top:14px; color:var(--m); font-size:12.5px; }
+  .spinner i { display:inline-block; width:16px; height:16px; border:2px solid var(--m); border-top-color:var(--red); border-radius:50%; animation:sp 1s linear infinite; vertical-align:-3px; margin-inline-end:6px; }
+  @keyframes sp { to { transform:rotate(360deg);} }
+  .divider { text-align:center; color:#3a3a42; font-size:12px; margin:26px 0 10px; }
+  .footer { color:#5c5c64; font-size:11.5px; text-align:center; margin-top:26px; line-height:2; }
+  .footer a { color:#8a8a92; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <img src="/static/icon.png" alt="Redouane Install">
+    <div>
+      <h1>Redouane Install</h1>
+      <p>حمل الفيديوهات والصوتيات من أكثر من <b>1000 موقع</b> — يوتيوب، تيك توك، إنستغرام، فيسبوك، X وأكثر. مجاني وبلا تسجيل.</p>
+    </div>
+  </div>
+
+  <div class="feats">
+    <span>مجاني 100%</span><span>بلا تسجيل</span><span>حتى 1080p HD</span><span>MP3 صوت فقط</span><span>+1000 موقع مدعوم</span>
+  </div>
+
+  <!-- تحميل من الرابط -->
+  <div class="panel">
+    <label>رابط الفيديو:</label>
+    <div class="row">
+      <input type="text" id="url" placeholder="https://..." autocomplete="off">
+      <button class="btn ghost" onclick="pasteLink()" title="لصق">لصق</button>
+      <button class="btn" onclick="loadInfo()" id="goBtn">جلب</button>
+    </div>
+
+    <div class="spinner" id="spin"><i></i> جاري جلب معلومات الفيديو...</div>
+    <div class="err" id="err"></div>
+
+    <div id="card">
+      <div class="cardrow">
+        <img id="thumb" alt="">
+        <div>
+          <h3 id="title"></h3>
+          <small id="meta"></small>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <button class="btn big" id="dlBtn" onclick="startDownload()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        تحميل الآن
+      </button>
+      <div class="note" id="dlNote"></div>
+    </div>
+  </div>
+
+  <div class="divider">— أو —</div>
+
+  <!-- زر التطبيق -->
+  <div class="panel" style="text-align:center">
+    <div style="color:var(--m); font-size:13px; margin-bottom:12px">
+      عندك أندرويد؟ حمّل التطبيق: أسرع، كيخدم مباشرة من هاتفك (حتى حيت يوتيوب كيبلوكي سيرفرات الويب)، وجودة حتى <b>4K</b>
+    </div>
+    <a class="btn big" href="__APK_URL__">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24c-2.86-1.21-6.08-1.21-8.94 0L5.65 5.67c-.19-.29-.58-.38-.87-.2-.28.18-.37.54-.22.83L6.4 9.48C3.3 11.25 1.28 14.44 1 18h22c-.28-3.56-2.3-6.75-5.4-8.52zM7 15.25c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25zm10 0c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25z"/></svg>
+      تحميل تطبيق الأندرويد (APK)
+    </a>
+  </div>
+
+  <div class="footer">
+    استعمل الموقع/التطبيق فقط للمحتوى اللي عندك الحق تحملو (فيديوهاتك، المحتوى المجاني، Creative Commons).<br>
+    صنع بمحبة باستعمال <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> — Redouane Install © 2026
+  </div>
+</div>
+
+<script>
+let selected = "best";
+const Q = [ ["best","الأفضل (1080p)"], ["1080","1080p"], ["720","720p"], ["480","480p خفيف"], ["mp3","MP3 صوت فقط"] ];
+const $ = s => document.querySelector(s);
+document.addEventListener("DOMContentLoaded", () => {
+  const chips = $("#chips");
+  Q.forEach(([k,l]) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (k===selected ? " sel" : "");
+    b.textContent = l;
+    b.onclick = () => { selected=k; document.querySelectorAll(".chip").forEach(c=>c.classList.remove("sel")); b.classList.add("sel"); };
+    chips.appendChild(b);
+  });
+  $("#url").addEventListener("keydown", e => { if (e.key === "Enter") loadInfo(); });
+});
+async function pasteLink(){
+  try { const t = await navigator.clipboard.readText(); if (t) $("#url").value = t; }
+  catch(e){ alert("ما نقدرش نقرا الحافظة — الصق يدوياً (اضغط مطولاً فالخانة)"); }
+}
+function fmt(s){ if(!s) return "--:--"; s=Math.round(s); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return h>0 ? `${h}:${String(m).padStart(2,"0")}:${String(ss).padStart(2,"0")}` : `${m}:${String(ss).padStart(2,"0")}`; }
+async function loadInfo(){
+  const v = $("#url").value.trim();
+  if (!v) { alert("ألصق رابط الفيديو أولاً"); return; }
+  $("#err").style.display="none"; $("#card").style.display="none"; $("#spin").style.display="block"; $("#goBtn").disabled=true;
+  try {
+    const r = await fetch("/api/info?url=" + encodeURIComponent(v));
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || d.error || "وقع خطأ");
+    $("#title").textContent = d.title || "فيديو";
+    const th = $("#thumb");
+    if (d.thumbnail) { th.src = d.thumbnail; th.style.display="block"; } else { th.style.display="none"; }
+    $("#meta").textContent = `${fmt(d.duration)} • ${d.site||""}` + (d.heights && d.heights.length ? ` • متاح حتى ${d.heights[0]}p` : "");
+    $("#card").style.display="block";
+    $("#dlNote").textContent="";
+  } catch(e) {
+    $("#err").textContent = e.message; $("#err").style.display="block";
+  } finally {
+    $("#spin").style.display="none"; $("#goBtn").disabled=false;
+  }
+}
+function startDownload(){
+  const v = $("#url").value.trim(); if (!v) return;
+  $("#dlNote").textContent = "جاري تجهيز الملف فالسيرفر... كيبدا التحميل من بعد ثواني.";
+  const a = document.createElement("a");
+  a.href = "/api/download?url=" + encodeURIComponent(v) + "&q=" + selected;
+  a.download = "";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>{ $("#dlNote").textContent = "إذا مابداش التحميل، جرب جودة أخف أو استعمل تطبيق الأندرويد."; }, 15000);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+-keep class com.yausername.** { *; }
+-keep class com.fasterxml.** { *; }
+-dontwarn com.fasterxml.**
+-dontwarn org.python.**
+-dontwarn io.chaquopy.**

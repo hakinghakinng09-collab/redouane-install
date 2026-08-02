@@ -1,0 +1,12 @@
+# Render Blueprint — نشر بضغطة واحدة
+# كيفاش: Render.com ← New ← Blueprint ← ربط الريبو ← Apply
+services:
+  - type: web
+    name: redouane-install
+    runtime: docker
+    rootDir: web-app
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: APK_URL
+        value: https://github.com/YOUR_GITHUB_USERNAME/redouane-install/releases/latest/download/RedouaneInstall.apk

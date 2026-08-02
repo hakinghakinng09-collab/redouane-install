@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+
+# سخون
+.DS_Store
+*.part
+*.ytdl
+web-app/tmp/

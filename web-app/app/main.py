@@ -6,6 +6,10 @@ GET  /                صفحة الويب
 GET  /api/info?url=   معلومات الفيديو (JSON)
 GET  /api/download?url=&q=best|1080|720|480|mp3   تحميل الملف مباشرة
 GET  /healthz         فحص الصحة (للاستضافة)
+
+متغيرات البيئة:
+  APK_URL          رابط تحميل التطبيق ديال الأندرويد
+  FFMPEG_LOCATION  (اختياري) مسار ffmpeg إلا ماكانش منصّب فالنظام
 """
 import os
 import re
@@ -24,18 +28,18 @@ from starlette.background import BackgroundTask
 APP_DIR = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
 
-# رابط تحميل الـ APK (كيتبدل من متغير البيئة عند النشر)
 APK_URL = os.environ.get(
     "APK_URL",
     "https://github.com/YOUR_GITHUB_USERNAME/redouane-install/releases/latest/download/RedouaneInstall.apk",
 )
+FFMPEG_LOCATION = os.environ.get("FFMPEG_LOCATION")
 
-# الجودات المتاحة فالويب (محدودة حتى 1080p باش مايثقلش السيرفر المجاني)
+# الجودات: فيهم fallback تلقائي إيلا ماكايناش metadata ديال الجودة (فيديوهات مباشرة...)
 QUALITY = {
-    "best": ["-f", "bv*[height<=1080]+ba/b[height<=1080]/b[height<=1080]", "--merge-output-format", "mp4"],
-    "1080": ["-f", "bv*[height<=1080]+ba/b[height<=1080]/b[height<=1080]", "--merge-output-format", "mp4"],
-    "720": ["-f", "bv*[height<=720]+ba/b[height<=720]/b[height<=720]", "--merge-output-format", "mp4"],
-    "480": ["-f", "bv*[height<=480]+ba/b[height<=480]/b[height<=480]", "--merge-output-format", "mp4"],
+    "best": ["-f", "bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b", "--merge-output-format", "mp4"],
+    "1080": ["-f", "bv*[height<=1080]+ba/b[height<=1080]/b[height<=1080]/b", "--merge-output-format", "mp4"],
+    "720": ["-f", "bv*[height<=720]+ba/b[height<=720]/b[height<=720]/b", "--merge-output-format", "mp4"],
+    "480": ["-f", "bv*[height<=480]+ba/b[height<=480]/b[height<=480]/b", "--merge-output-format", "mp4"],
     "mp3": ["-f", "ba/b", "-x", "--audio-format", "mp3", "--audio-quality", "0"],
 }
 
@@ -64,8 +68,8 @@ def _check_url(u: str) -> str:
 def _friendly(msg: str) -> str:
     m = (msg or "").lower()
     if "sign in to confirm" in m or "not a bot" in m:
-        return ("يوتيوب كيبلوكي السيرفر مؤقتاً (تحقق IP مركز البيانات). "
-                "جرب موقع آخر، أو استعمل تطبيق الأندرويد ديالنا — كيخدم من هاتفك مباشرة.")
+        return ("يوتيوب كيبلوكي السيرفرات مؤقتاً (تحقق IP مركز البيانات). "
+                "جرب موقع آخر، أو استعمل تطبيق الأندرويد — كيخدم من هاتفك مباشرة.")
     if "unsupported url" in m:
         return "هاد الرابط ماشي مدعوم"
     if "private" in m or "login" in m:
@@ -121,20 +125,33 @@ def api_download(url: str = Query(...), q: str = Query("best")):
 
     tmp = Path(tempfile.mkdtemp(prefix="rinst_"))
     out_tpl = str(tmp / "%(title).50B [%(id)s].%(ext)s")
-    cmd = [
-        sys.executable, "-m", "yt_dlp",
-        "--no-playlist", "--newline", "--no-mtime",
-        "--retries", "3",
-        "-o", out_tpl, *QUALITY[q], url,
-    ]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-    except subprocess.TimeoutExpired:
-        raise HTTPException(504, "الفيديو كبير بزاف — جرب جودة أخف (480p / MP3)")
 
-    if proc.returncode != 0:
+    attempts = [QUALITY[q]]
+    # محاولة أخيرة احتياطية بالصيغة الأبسط
+    attempts.append(["-f", "b"] if q != "mp3" else
+                    ["-f", "b", "-x", "--audio-format", "mp3", "--audio-quality", "0"])
+
+    ff_args = ["--ffmpeg-location", FFMPEG_LOCATION] if FFMPEG_LOCATION else []
+    last_err = "unknown"
+    proc = None
+    for args in attempts:
+        cmd = [
+            sys.executable, "-m", "yt_dlp", *ff_args,
+            "--no-playlist", "--newline", "--no-mtime",
+            "--retries", "3",
+            "-o", out_tpl, *args, url,
+        ]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        except subprocess.TimeoutExpired:
+            raise HTTPException(504, "الفيديو كبير بزاف — جرب جودة أخف (480p / MP3)")
+        if proc.returncode == 0:
+            break
         log = (proc.stderr or proc.stdout or "").strip().splitlines()
-        raise HTTPException(500, _friendly(log[-1] if log else "unknown"))
+        last_err = log[-1] if log else "unknown"
+
+    if proc is None or proc.returncode != 0:
+        raise HTTPException(500, _friendly(last_err))
 
     files = [f for f in tmp.iterdir() if f.is_file() and not f.name.endswith((".part", ".ytdl"))]
     if not files:

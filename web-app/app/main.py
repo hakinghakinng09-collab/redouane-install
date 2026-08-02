@@ -30,7 +30,7 @@ STATIC_DIR = APP_DIR / "static"
 
 APK_URL = os.environ.get(
     "APK_URL",
-    "https://github.com/YOUR_GITHUB_USERNAME/redouane-install/releases/latest/download/RedouaneInstall.apk",
+    "https://github.com/hakinghakinng09-collab/redouane-install/releases/latest/download/RedouaneInstall.apk",
 )
 FFMPEG_LOCATION = os.environ.get("FFMPEG_LOCATION")
 

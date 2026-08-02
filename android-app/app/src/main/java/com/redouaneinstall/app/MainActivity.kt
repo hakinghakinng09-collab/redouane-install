@@ -195,7 +195,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    HomeScreen(vm)
+                    var showSplash by remember { mutableStateOf(true) }
+                    if (showSplash) {
+                        SplashOverlay { showSplash = false }
+                    } else {
+                        HomeScreen(vm)
+                    }
                 }
             }
         }
@@ -552,6 +557,15 @@ fun HomeScreen(vm: MainViewModel) {
             color = Brand.Muted,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "مطوّر: Redouane El Moukhtatifi — 2026",
+            style = MaterialTheme.typography.labelSmall,
+            color = Brand.Red,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(30.dp))
     }

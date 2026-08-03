@@ -18,6 +18,8 @@
         android:theme="@style/Theme.RedouaneInstall"
         android:supportsRtl="true"
         android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:requestLegacyExternalStorage="true">
 
         <activity

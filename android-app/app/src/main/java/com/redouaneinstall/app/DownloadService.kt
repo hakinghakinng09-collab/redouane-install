@@ -80,11 +80,9 @@ class DownloadService : Service() {
     override fun onCreate() {
         super.onCreate()
         notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= 26) {
-            notifManager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "التحميلات", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
+        notifManager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "التحميلات", NotificationManager.IMPORTANCE_LOW)
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -144,12 +142,8 @@ class DownloadService : Service() {
                 .recoverCatching { executeDl(spec, template, fallback = true) }
                 .getOrThrow()
             if (f != null && f.exists()) {
-                val saved = MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
-                if (saved) {
-                    events.tryEmit(Event.Done(f.name))
-                } else {
-                    events.tryEmit(Event.Failed("التحميل كمل ولكن ما قدرناش نسجلو الملف. تأكد من المساحة والصلاحيات."))
-                }
+                MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
+                events.tryEmit(Event.Done(f.name))
             } else {
                 events.tryEmit(Event.Failed("ما نقدر يهز الفيديو. جرب جودة أخرى."))
             }
@@ -263,15 +257,10 @@ class DownloadService : Service() {
                 .setOngoing(percent in 0..99)
                 .setProgress(100, if (percent < 0) 0 else percent, percent < 0)
                 .build()
-            runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIF_ID, safe, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-                } else {
-                    startForeground(NOTIF_ID, safe)
-                }
-            }.onFailure {
-                events.tryEmit(Event.Failed("ما قدرش يبدا إشعار التحميل. فعل الإشعارات وجرب مرة أخرى."))
-                stopSelf()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIF_ID, safe, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(NOTIF_ID, safe)
             }
         }
     }

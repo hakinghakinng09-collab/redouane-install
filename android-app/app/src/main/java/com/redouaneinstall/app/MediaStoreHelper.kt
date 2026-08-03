@@ -1,5 +1,6 @@
 package com.redouaneinstall.app
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
@@ -38,30 +39,48 @@ object MediaStoreHelper {
     /** ينسخ الملف لمجلد Download/RedouaneInstall اللي كيبان في مدير الملفات */
     fun saveToDownloads(ctx: Context, src: File, isAudio: Boolean): Boolean {
         val mime = mimeFor(src.extension)
-        return if (Build.VERSION.SDK_INT >= 29) {
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, src.name)
-                put(MediaStore.Downloads.MIME_TYPE, mime)
-                put(MediaStore.Downloads.RELATIVE_PATH, "Download/RedouaneInstall")
-                put(MediaStore.Downloads.SIZE, src.length())
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val resolver = ctx.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, src.name)
+                    put(MediaStore.Downloads.MIME_TYPE, mime)
+                    put(
+                        MediaStore.Downloads.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/RedouaneInstall"
+                    )
+                    // ما نخليوش المشغل يشوف الملف قبل ما يكمل النسخ.
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: return@runCatching false
+                try {
+                    val output = resolver.openOutputStream(uri)
+                        ?: throw IllegalStateException("ما قدرناش نفتحو ملف التحميل")
+                    output.use { out ->
+                        src.inputStream().use { it.copyTo(out) }
+                    }
+                    val ready = ContentValues().apply {
+                        put(MediaStore.Downloads.IS_PENDING, 0)
+                    }
+                    resolver.update(uri, ready, null, null)
+                    true
+                } catch (t: Throwable) {
+                    resolver.delete(uri, null, null)
+                    false
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    "RedouaneInstall"
+                ).apply { mkdirs() }
+                val dst = File(dir, src.name)
+                src.inputStream().use { inp -> dst.outputStream().use { inp.copyTo(it) } }
+                MediaScannerConnection.scanFile(ctx, arrayOf(dst.absolutePath), arrayOf(mime), null)
+                true
             }
-            val uri = ctx.contentResolver
-                .insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
-            ctx.contentResolver.openOutputStream(uri)?.use { out ->
-                src.inputStream().use { it.copyTo(out) }
-            } ?: return false
-            true
-        } else {
-            @Suppress("DEPRECATION")
-            val dir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "RedouaneInstall"
-            ).apply { mkdirs() }
-            val dst = File(dir, src.name)
-            src.inputStream().use { inp -> dst.outputStream().use { inp.copyTo(it) } }
-            MediaScannerConnection.scanFile(ctx, arrayOf(dst.absolutePath), arrayOf(mime), null)
-            true
-        }
+        }.getOrDefault(false)
     }
 
     suspend fun listDownloads(ctx: Context): List<Item> = withContext(Dispatchers.IO) {
@@ -71,13 +90,14 @@ object MediaStoreHelper {
                 MediaStore.Downloads._ID,
                 MediaStore.Downloads.DISPLAY_NAME,
                 MediaStore.Downloads.SIZE,
-                MediaStore.Downloads.MIME_TYPE
+                MediaStore.Downloads.MIME_TYPE,
+                MediaStore.Downloads.IS_PENDING
             )
             ctx.contentResolver.query(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 proj,
-                "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?",
-                arrayOf("Download/RedouaneInstall/%"),
+                "${MediaStore.Downloads.RELATIVE_PATH} LIKE ? AND ${MediaStore.Downloads.IS_PENDING}=0",
+                arrayOf(Environment.DIRECTORY_DOWNLOADS + "/RedouaneInstall/%"),
                 "${MediaStore.Downloads.DATE_ADDED} DESC"
             )?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
@@ -85,9 +105,9 @@ object MediaStoreHelper {
                 val sizeCol = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
                 val mimeCol = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
                 while (c.moveToNext() && list.size < 50) {
-                    val uri = Uri.withAppendedPath(
+                    val uri = ContentUris.withAppendedId(
                         MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        c.getLong(idCol).toString()
+                        c.getLong(idCol)
                     )
                     val mime = c.getString(mimeCol) ?: ""
                     list += Item(
@@ -117,7 +137,8 @@ object MediaStoreHelper {
         val uri = item.uri ?: item.path?.let { p ->
             FileProvider.getUriForFile(ctx, ctx.packageName + ".provider", File(p))
         } ?: return null
-        return uri to mimeFor(ext)
+        val storedMime = item.uri?.let { ctx.contentResolver.getType(it) }
+        return uri to (storedMime ?: mimeFor(ext))
     }
 
     private fun humanSize(bytes: Long): String = when {

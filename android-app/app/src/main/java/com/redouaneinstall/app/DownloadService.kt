@@ -144,8 +144,12 @@ class DownloadService : Service() {
                 .recoverCatching { executeDl(spec, template, fallback = true) }
                 .getOrThrow()
             if (f != null && f.exists()) {
-                MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
-                events.tryEmit(Event.Done(f.name))
+                val saved = MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
+                if (saved) {
+                    events.tryEmit(Event.Done(f.name))
+                } else {
+                    events.tryEmit(Event.Failed("التحميل كمل ولكن ما قدرناش نسجلو الملف. تأكد من المساحة والصلاحيات."))
+                }
             } else {
                 events.tryEmit(Event.Failed("ما نقدر يهز الفيديو. جرب جودة أخرى."))
             }
@@ -237,14 +241,38 @@ class DownloadService : Service() {
             .setContentTitle(getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(pi)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setOnlyAlertOnce(true)
             .setOngoing(percent in 0..99)
             .setProgress(100, if (percent < 0) 0 else percent, percent < 0)
             .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(NOTIF_ID, n)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(NOTIF_ID, n)
+            }
+        } catch (_: Throwable) {
+            // بعض هواتف Android كتكون صارمة مع أيقونة الإشعار؛ نستعمل أيقونة النظام كحل احتياطي.
+            val safe = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(text)
+                .setContentIntent(pi)
+                .setOnlyAlertOnce(true)
+                .setOngoing(percent in 0..99)
+                .setProgress(100, if (percent < 0) 0 else percent, percent < 0)
+                .build()
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIF_ID, safe, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                } else {
+                    startForeground(NOTIF_ID, safe)
+                }
+            }.onFailure {
+                events.tryEmit(Event.Failed("ما قدرش يبدا إشعار التحميل. فعل الإشعارات وجرب مرة أخرى."))
+                stopSelf()
+            }
         }
     }
 

@@ -9,4 +9,4 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: APK_URL
-        value: https://github.com/YOUR_GITHUB_USERNAME/redouane-install/releases/latest/download/RedouaneInstall.apk
+        value: https://github.com/hakinghakinng09-collab/redouane-install/releases/latest/download/RedouaneInstall.apk

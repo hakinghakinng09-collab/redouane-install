@@ -233,7 +233,7 @@ class DownloadService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_download)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(text)
             .setContentIntent(pi)

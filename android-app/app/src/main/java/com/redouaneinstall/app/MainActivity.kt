@@ -3,6 +3,7 @@ package com.redouaneinstall.app
 import android.Manifest
 import android.app.Application
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -654,15 +655,28 @@ private fun formatDur(sec: Long): String {
 }
 
 private fun openItem(ctx: Context, item: MediaStoreHelper.Item) {
-    val (uri, mime) = MediaStoreHelper.openUriFor(ctx, item) ?: return
     try {
-        ctx.startActivity(
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, mime)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        )
-    } catch (e: ActivityNotFoundException) {
-        Toast.makeText(ctx, "ما كاين تطبيق كيفتح هاد النوع ديال الملفات", Toast.LENGTH_SHORT).show()
+        val opened = MediaStoreHelper.openUriFor(ctx, item)
+        if (opened == null) {
+            Toast.makeText(ctx, "الملف ما بقىش موجود فالهاتف", Toast.LENGTH_LONG).show()
+            return
+        }
+        val (uri, mime) = opened
+        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mime)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // ضروري فبعض هواتف Android 10 باش يوصل المشغل لصلاحية قراءة URI.
+            clipData = ClipData.newRawUri("Redouane Install", uri)
+        }
+        if (viewIntent.resolveActivity(ctx.packageManager) == null) {
+            Toast.makeText(ctx, "ثبت VLC أو أي مشغل فيديو باش تفتح الملف", Toast.LENGTH_LONG).show()
+            return
+        }
+        ctx.startActivity(Intent.createChooser(viewIntent, "فتح الملف بواسطة"))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(ctx, "ما كاين حتى تطبيق كيفتح هاد النوع ديال الملفات — ثبت VLC", Toast.LENGTH_LONG).show()
+    } catch (_: Throwable) {
+        // حتى إلا كان الملف ناقص أو URI تبدل، ما نخليوش التطبيق يخرج.
+        Toast.makeText(ctx, "ما قدرناش نفتحو الملف. جرب تفتحو من مجلد Download/RedouaneInstall", Toast.LENGTH_LONG).show()
     }
 }

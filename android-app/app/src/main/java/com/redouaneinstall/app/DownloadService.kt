@@ -142,8 +142,12 @@ class DownloadService : Service() {
                 .recoverCatching { executeDl(spec, template, fallback = true) }
                 .getOrThrow()
             if (f != null && f.exists()) {
-                MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
-                events.tryEmit(Event.Done(f.name))
+                val saved = MediaStoreHelper.saveToDownloads(applicationContext, f, spec.isAudio)
+                if (saved) {
+                    events.tryEmit(Event.Done(f.name))
+                } else {
+                    events.tryEmit(Event.Failed("التحميل كمل ولكن ما قدرناش نسجلو الملف. تأكد من المساحة والصلاحيات."))
+                }
             } else {
                 events.tryEmit(Event.Failed("ما نقدر يهز الفيديو. جرب جودة أخرى."))
             }
@@ -257,10 +261,15 @@ class DownloadService : Service() {
                 .setOngoing(percent in 0..99)
                 .setProgress(100, if (percent < 0) 0 else percent, percent < 0)
                 .build()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIF_ID, safe, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-            } else {
-                startForeground(NOTIF_ID, safe)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIF_ID, safe, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                } else {
+                    startForeground(NOTIF_ID, safe)
+                }
+            }.onFailure {
+                events.tryEmit(Event.Failed("ما قدرش يبدا إشعار التحميل. فعل الإشعارات وجرب مرة أخرى."))
+                stopSelf()
             }
         }
     }
